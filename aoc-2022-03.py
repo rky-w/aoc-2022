@@ -17,3 +17,14 @@ for pk in pks:
 
 # Pt 1
 print(scr)
+
+# Pt 2
+spks = [set(pk) for pk in pks]
+
+scr2 = 0
+for i in range(int(len(spks) / 3)):
+    ts = spks[i*3:i*3+3]
+    j2 = ts[0].intersection(ts[1]).intersection(ts[2]).pop()
+    scr2 += vals.get(j2)
+
+print(scr2)
