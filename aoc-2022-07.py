@@ -44,6 +44,8 @@ class FileSys:
         self.diridx = defaultdict(set)
         self.parents = defaultdict(set)
         self.fileidx = defaultdict(set)
+        self.fileszs = defaultdict(set)
+        self.dirszs = defaultdict(set)
 
     def cd(self, path):
         if path == '..':
@@ -66,13 +68,26 @@ class FileSys:
     def touch(self, filename):
         self.fileidx[self.cwd].add(filename)
 
+    # Recursion through tree to add sum of files in child dirs
+    def _sizer(self, node):
+        if not self.diridx.get(node):
+            return list(self.fileszs.get(node))[0]
+        else:
+            return list(self.fileszs.get(node))[0] + sum(self._sizer(child) for child in self.diridx.get(node))
+
     def sizer(self):
-        pass
-        for loc in self.fileidx:
-            for file in loc:
-                res = re.match(r'^(\d+) (.*)$', file)
-                if res:
-                    res.group(1)
+        # Get totals within directories
+        for dir, contents in self.fileidx.items():
+            totsz = 0
+            for file in contents:
+                totsz += int(re.match(r'^(\d+)', file).group(1))
+            self.fileszs[dir].add(totsz)
+        
+        # Do this for all directories (nodes)
+        for dir in self.fileszs.keys():
+            self.dirszs[dir].add(self._sizer(dir))
+
+
 
 
 # Run through the commands to image the file system
@@ -80,7 +95,7 @@ fs = FileSys()
 i = 0
 while i < len(log):
     line = log[i]
-    print(f'Logging: {line} (i={i})')
+    # print(f'Logging: {line} (i={i})')
     if re.match(r'^\$ cd', line):
         fs.cd(line.split()[2])
         i += 1
@@ -95,12 +110,11 @@ while i < len(log):
         fs.ls(contents)
     else:
         break
-    fs.diridx
-    fs.fileidx
-    fs.parents
-    fs.cwd
-    print('---------')
     
 
-# YOU ARE HERE
-# Develop the sizer function to sum up file sizes within each directory
+# Run the sizer
+fs.sizer()
+
+# Pt 1 answer
+print(sum(list(v)[0] for v in fs.dirszs.values() if list(v)[0] < 100000))
+
