@@ -2,119 +2,83 @@
 from aocd.models import Puzzle
 from string import ascii_letters
 import re
+import os
+import time
 from pprint import pprint
 from copy import deepcopy
 from collections import defaultdict
+from fs.memoryfs import MemoryFS
 
 puzzle = Puzzle(year=2022, day=7)
 
 log = puzzle.input_data.splitlines()
 
-log = [
-'$ cd /',
-'$ ls',
-'dir a',
-'14848514 b.txt',
-'8504156 c.dat',
-'dir d',
-'$ cd a',
-'$ ls',
-'dir e',
-'29116 f',
-'2557 g',
-'62596 h.lst',
-'$ cd e',
-'$ ls',
-'584 i',
-'$ cd ..',
-'$ cd ..',
-'$ cd d',
-'$ ls',
-'4060174 j',
-'8033020 d.log',
-'5626152 d.ext',
-'7214296 k'
-]
-
-
 # Class to build image of the file system
-class FileSys:
+class FileSys():
     def __init__(self):
-        self.cwd = '/'
-        self.diridx = defaultdict(set)
-        self.parents = defaultdict(set)
-        self.fileidx = defaultdict(set)
-        self.fileszs = defaultdict(set)
-        self.dirszs = defaultdict(set)
+        self.fs = MemoryFS()
+        self.cpath = []
+        self.dirszs = dict()
 
-    def cd(self, path):
-        if path == '..':
-            self.cwd = list(self.parents[self.cwd])[0]
+    def cd(self, dir):
+        if dir == '..':
+            self.cpath.pop()
         else:
-            self.parents[path].add(self.cwd)
-            self.cwd = path
-
+            self.cpath.append(dir)
+            self.fs.makedir('/'.join(self.cpath), recreate=True)
+            
     def ls(self, contents):
+        dirsize = 0
         for c in contents:
-            res = re.match(r'^dir ([a-z]+)', c)
-            if res:
-                self.mkdir(res.group(1))
+            isdir = re.match(r'^dir ([a-z]+)', c)
+            if isdir:
+                self.fs.makedir('/'.join(self.cpath + [isdir.group(1)]))
             else:
-                self.touch(c)
-
-    def mkdir(self, dirname):
-        self.diridx[self.cwd].add(dirname)
-
-    def touch(self, filename):
-        self.fileidx[self.cwd].add(filename)
-
-    # Recursion through tree to add sum of files in child dirs
-    def _sizer(self, node):
-        if not self.diridx.get(node):
-            return list(self.fileszs.get(node))[0]
-        else:
-            return list(self.fileszs.get(node))[0] + sum(self._sizer(child) for child in self.diridx.get(node))
+                dirsize += int(re.match(r'^(\d+)', c).group(1))
+        self.fs.writetext('/'.join(self.cpath + [str(dirsize)]),'')
+    
+    def image(self, log):
+        i = 0
+        while i < len(log):
+            line = log[i]
+            # print(f'Logging: {line} (i={i})')
+            if re.match(r'^\$ cd', line):
+                self.cd(line.split()[2])
+                i += 1
+            elif re.match(r'^\$ ls', line):
+                i += 1
+                contents = []
+                while re.match('^[^\$].*', log[i]):
+                    contents.append(log[i])
+                    i += 1
+                    if i >= len(log):
+                        break
+                self.ls(contents)
+            else:
+                break
 
     def sizer(self):
-        # Get totals within directories
-        for dir, contents in self.fileidx.items():
-            totsz = 0
-            for file in contents:
-                totsz += int(re.match(r'^(\d+)', file).group(1))
-            self.fileszs[dir].add(totsz)
-        
-        # Do this for all directories (nodes)
-        for dir in self.fileszs.keys():
-            self.dirszs[dir].add(self._sizer(dir))
-
-
-
-
-# Run through the commands to image the file system
-fs = FileSys()
-i = 0
-while i < len(log):
-    line = log[i]
-    # print(f'Logging: {line} (i={i})')
-    if re.match(r'^\$ cd', line):
-        fs.cd(line.split()[2])
-        i += 1
-    elif re.match(r'^\$ ls', line):
-        i += 1
-        contents = []
-        while re.match('^[^\$].*', log[i]):
-            contents.append(log[i])
-            i += 1
-            if i >= len(log):
-                break
-        fs.ls(contents)
-    else:
-        break
+        for dir in self.fs.walk.dirs():
+            fsizes = 0
+            for file in self.fs.walk.files(dir):
+                fsizes += int(re.match(r'.*/(\d+)$', file).group(1))
+            self.dirszs[dir] = fsizes
     
 
-# Run the sizer
+
+
+# Run through the command log to image the file system then get directory sizes
+fs = FileSys()
+fs.image(log)
 fs.sizer()
 
 # Pt 1 answer
-print(sum(list(v)[0] for v in fs.dirszs.values() if list(v)[0] < 100000))
+print(sum(v for v in fs.dirszs.values() if v < 100000))
 
+
+# Pt 2
+totsize = 0
+for file in fs.fs.walk.files():
+    totsize += int(re.match(r'.*/(\d+)$', file).group(1))
+
+print(min(dirsz for dirsz in fs.dirszs.values() if dirsz >= (30000000 - (70000000 - totsize))))
