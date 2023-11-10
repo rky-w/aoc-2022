@@ -50,3 +50,29 @@ for x in range(ta.shape[0]):
 
 # Pt 1 answer
 print((visarr > 0).sum())
+
+
+# pt 2
+def vistrees(line, tree):
+    ci = 0
+    for t in line:
+        ci += 1
+        if t >= tree:
+            break
+    return ci
+
+best_score = 0
+for x in range(ta.shape[0]):
+    for y in range(ta.shape[1]):
+        tree = ta[x, y]
+        col=ta[x,:]
+        row=ta[:,y]
+        rvis = vistrees(row[x+1:mx], tree)
+        lvis = vistrees(row[x-1::-1], tree)
+        uvis = vistrees(col[y-1::-1], tree)
+        dvis = vistrees(col[y+1:my], tree)
+        score = rvis * lvis * uvis * dvis
+        best_score = max(best_score, score)
+
+# pt 2 answer
+print(best_score)
