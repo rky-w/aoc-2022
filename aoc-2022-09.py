@@ -25,31 +25,44 @@ motions_test = [
     'R 2',
 ]
 
+motions_test2 = [
+    'R 5',
+    'U 8',
+    'L 8',
+    'D 3',
+    'R 17',
+    'D 10',
+    'L 25',
+    'U 20',
+]
+
+
 class Ropes():
-    def __init__(self):
+    def __init__(self, ntails=1):
         self.h = np.array([0,0])
-        self.t = np.array([0,0])
+        self.t = [np.array([0,0]) for i in range(ntails + 1)]
         self.thist = list()
 
     def mvh(self, dir):
         if dir=='R':
-            self.h[0] += 1
+            self.t[0][0] += 1
         elif dir=='L':
-            self.h[0] -= 1
+            self.t[0][0] -= 1
         elif dir=='U':
-            self.h[1] += 1
+            self.t[0][1] += 1
         else:
-            self.h[1] -= 1
+            self.t[0][1] -= 1
         
-    def mvt(self):
-        diffx, diffy = self.h[0] - self.t[0], self.h[1] - self.t[1]
-        if abs(self.h - self.t).sum() > 2:
-            self.t[0] += diffx // abs(diffx)
-            self.t[1] += diffy // abs(diffy)
+    def mvt(self, h, t):
+        diffx, diffy = h[0] - t[0], h[1] - t[1]
+        if abs(h - t).sum() > 2:
+            t[0] += diffx // abs(diffx)
+            t[1] += diffy // abs(diffy)
         elif abs(diffx) > 1:
-            self.t[0] += diffx // 2
+            t[0] += diffx // 2
         elif abs(diffy) > 1:
-            self.t[1] += diffy // 2
+            t[1] += diffy // 2
+        return t
 
     def move(self, motions):
         for motion in motions:
@@ -57,15 +70,20 @@ class Ropes():
             steps = int(nc)
             for step in range(steps):
                 self.mvh(dir)
-                self.mvt()
-                self.thist.append(str(self.t))
+                for i in range(1, len(self.t)):
+                    self.t[i] = self.mvt(self.t[i-1], self.t[i])
+                self.thist.append(str(self.t[i]))
     
     def npositions(self):
         return len(set(self.thist))
-
 
 r = Ropes()
 r.move(motions)
 
 # Pt 1 answer
 r.npositions()
+
+# Pt 2 answer
+r9 = Ropes(9)
+r9.move(motions)
+r9.npositions()
